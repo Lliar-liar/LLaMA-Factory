@@ -1,5 +1,5 @@
 ### model
-model_name_or_path: Qwen/Qwen3-Omni-30B-A3B-Instruct
+model_name_or_path: Qwen/Qwen2.5-Omni-7B
 image_max_pixels: 16384
 video_max_pixels: 16384
 trust_remote_code: true
@@ -15,7 +15,7 @@ pref_loss: sigmoid  # choices: [sigmoid (dpo), orpo, simpo]
 
 ### dataset
 dataset: rlhf_v
-template: qwen3_omni
+template: qwen2_omni
 cutoff_len: 2048
 max_samples: 1000
 overwrite_cache: true
