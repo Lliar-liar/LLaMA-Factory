@@ -13,8 +13,8 @@ lora_target: all
 ### dataset
 dataset: LiFT-HRA-20K
 template: qwen2_omni
-cutoff_len: 3072
-max_samples: 1000
+cutoff_len: 32000
+max_samples: 20000
 overwrite_cache: true
 preprocessing_num_workers: 16
 dataloader_num_workers: 4
