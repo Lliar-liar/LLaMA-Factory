@@ -28,7 +28,7 @@ overwrite_output_dir: true
 save_only_model: false
 
 ### train
-use_audio_in_video: true
+# use_audio_in_video: true
 per_device_train_batch_size: 2
 gradient_accumulation_steps: 1
 freeze_vision_tower: true
