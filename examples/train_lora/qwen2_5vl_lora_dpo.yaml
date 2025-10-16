@@ -7,7 +7,7 @@ trust_remote_code: true
 stage: sft
 do_train: true
 finetuning_type: lora
-lora_rank: 8
+lora_rank: 16
 lora_target: all
 
 ### dataset
@@ -29,10 +29,10 @@ save_only_model: false
 
 ### train
 use_audio_in_video: false
-per_device_train_batch_size: 16
-gradient_accumulation_steps: 4
+per_device_train_batch_size: 32
+gradient_accumulation_steps: 1
 freeze_vision_tower: true
-learning_rate: 2.0e-5
+learning_rate: 5.0e-5
 num_train_epochs: 3.0
 lr_scheduler_type: cosine
 warmup_ratio: 0.1
