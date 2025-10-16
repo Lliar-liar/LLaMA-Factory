@@ -18,6 +18,14 @@
       "videos": "videos"
     }
   },
+  "audio-alpaca":{
+    "file_name": "/blob/audio-alpaca/audio_alpaca_for_llama_factory_v2.json",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations",
+      "audios": "audios"
+    }
+  },
   "alpaca_en_demo": {
     "file_name": "alpaca_en_demo.json"
   },

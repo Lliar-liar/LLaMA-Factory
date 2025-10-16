@@ -11,7 +11,7 @@ lora_rank: 32
 lora_target: all
 
 ### dataset
-dataset: VideoGen-RewardBench, LiFT-HRA-20K
+dataset: VideoGen-RewardBench, LiFT-HRA-20K, audio-alpaca
 template: qwen2_omni
 cutoff_len: 32000
 max_samples: 2000000
