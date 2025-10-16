@@ -7,11 +7,11 @@ trust_remote_code: true
 stage: sft
 do_train: true
 finetuning_type: lora
-lora_rank: 16
+lora_rank: 32
 lora_target: all
 
 ### dataset
-dataset: VideoGen-RewardBench
+dataset: VideoGen-RewardBench, LiFT-HRA-20K
 template: qwen2_omni
 cutoff_len: 32000
 max_samples: 2000000
@@ -22,7 +22,7 @@ dataloader_num_workers: 2
 ### output
 output_dir: /blob/qwen-omni-reward/qwen25-omni-video
 logging_steps: 10
-save_steps: 200
+save_steps: 100
 plot_loss: true
 overwrite_output_dir: true
 save_only_model: false
@@ -45,4 +45,4 @@ resume_from_checkpoint: null
 val_size: 0.1
 per_device_eval_batch_size: 32
 eval_strategy: steps
-eval_steps: 200
+eval_steps: 100
