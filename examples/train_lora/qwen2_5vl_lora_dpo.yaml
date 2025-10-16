@@ -1,6 +1,6 @@
 ### model
 model_name_or_path: Qwen/Qwen3-Omni-30B-A3B-Instruct
-image_max_pixels: 262144
+image_max_pixels: 16384
 video_max_pixels: 16384
 trust_remote_code: true
 
@@ -15,7 +15,7 @@ pref_loss: sigmoid  # choices: [sigmoid (dpo), orpo, simpo]
 
 ### dataset
 dataset: rlhf_v
-template: qwen2_vl
+template: qwen3_omni
 cutoff_len: 2048
 max_samples: 1000
 overwrite_cache: true
@@ -23,7 +23,7 @@ preprocessing_num_workers: 16
 dataloader_num_workers: 4
 
 ### output
-output_dir: saves/qwen2_5vl-7b/lora/dpo
+output_dir: saves/Qwen3-Omni-30B-A3B-Instruct/lora/dpo
 logging_steps: 10
 save_steps: 500
 plot_loss: true
