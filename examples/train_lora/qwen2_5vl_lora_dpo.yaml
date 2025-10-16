@@ -16,27 +16,33 @@ template: qwen2_omni
 cutoff_len: 32000
 max_samples: 20000
 overwrite_cache: true
-preprocessing_num_workers: 16
-dataloader_num_workers: 4
+preprocessing_num_workers: 32
+dataloader_num_workers: 2
 
 ### output
 output_dir: /blob/qwen-omni-reward/qwen25-omni-video
-logging_steps: 1
-save_steps: 500
+logging_steps: 10
+save_steps: 200
 plot_loss: true
 overwrite_output_dir: true
 save_only_model: false
 
 ### train
 use_audio_in_video: false
-per_device_train_batch_size: 4
-gradient_accumulation_steps: 16
+per_device_train_batch_size: 16
+gradient_accumulation_steps: 4
 freeze_vision_tower: true
-learning_rate: 1.0e-4
-num_train_epochs: 25.0
+learning_rate: 2.0e-5
+num_train_epochs: 3.0
 lr_scheduler_type: cosine
 warmup_ratio: 0.1
 # fp16: true
 bf16: true
 ddp_timeout: 180000000
 resume_from_checkpoint: null
+
+### eval
+val_size: 0.1
+per_device_eval_batch_size: 32
+eval_strategy: steps
+eval_steps: 200
