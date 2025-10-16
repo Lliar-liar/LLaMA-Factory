@@ -2,6 +2,14 @@
   "identity": {
     "file_name": "identity.json"
   },
+  "LiFT-HRA-20K": {
+    "file_name": "/blob/LiFT-HRA-20K/LiFT-HRA-20K.json",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations",
+      "videos": "videos"
+    }
+  },
   "alpaca_en_demo": {
     "file_name": "alpaca_en_demo.json"
   },

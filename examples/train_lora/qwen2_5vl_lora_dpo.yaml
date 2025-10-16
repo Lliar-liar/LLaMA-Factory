@@ -11,7 +11,7 @@ lora_rank: 8
 lora_target: all
 
 ### dataset
-dataset: mllm_video_demo
+dataset: LiFT-HRA-20K
 template: qwen2_omni
 cutoff_len: 3072
 max_samples: 1000
