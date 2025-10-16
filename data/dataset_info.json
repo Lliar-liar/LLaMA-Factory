@@ -3,7 +3,7 @@
     "file_name": "identity.json"
   },
   "LiFT-HRA-20K": {
-    "file_name": "/blob/LiFT-HRA-20K/LiFT-HRA-20K.json",
+    "file_name": "/blob/LiFT-HRA-20K/LiFT-HRA-data.json",
     "formatting": "sharegpt",
     "columns": {
       "messages": "conversations",
