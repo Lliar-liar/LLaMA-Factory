@@ -7,7 +7,7 @@
     "formatting": "sharegpt",
     "columns": {
       "messages": "conversations",
-      "videos": "videos"
+      "videos": "video"
     }
   },
   "alpaca_en_demo": {
