@@ -10,6 +10,14 @@
       "videos": "video_path"
     }
   },
+  "VideoGen-RewardBench":{
+    "file_name": "/blob/VideoGen-RewardBench/videogen-rewardbench.json",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "conversations",
+      "videos": "videos"
+    }
+  },
   "alpaca_en_demo": {
     "file_name": "alpaca_en_demo.json"
   },
