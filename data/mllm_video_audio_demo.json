@@ -2,7 +2,7 @@
   {
     "messages": [
       {
-        "content": "What is the video describing?",
+        "content": "<video><audio>What is the video describing?",
         "role": "user"
       },
       {
@@ -20,7 +20,7 @@
   {
     "messages": [
       {
-        "content": "What does this girl say?",
+        "content": "<video><audio>What does this girl say?",
         "role": "user"
       },
       {
@@ -38,7 +38,7 @@
   {
     "messages": [
       {
-        "content": "What is this girl drawing with?",
+        "content": "<video><audio>What is this girl drawing with?",
         "role": "user"
       },
       {
