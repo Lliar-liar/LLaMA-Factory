@@ -9,7 +9,7 @@
     "file_name": "alpaca_zh_demo.json"
   },
   "abhuman_anomaly": {
-    "file_name": "/blob/HumanRefiner/abhuman_blob.json",
+    "file_name": "/blob/HumanRefiner/abhuman_sft_augmented_blob.json",
     "formatting": "sharegpt",
     "columns": {
       "messages": "messages",
