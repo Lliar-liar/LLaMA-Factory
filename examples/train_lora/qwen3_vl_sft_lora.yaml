@@ -1,0 +1,49 @@
+### model
+model_name_or_path: Qwen/Qwen3-VL-8B-Instruct
+image_max_pixels: 12845056
+video_max_pixels: 16384
+trust_remote_code: true
+
+### method
+stage: sft
+do_train: true
+finetuning_type: lora
+lora_rank: 16
+lora_alpha: 32     
+lora_target: all
+deepspeed: examples/deepspeed/ds_z2_config.json  # choices: [ds_z0_config.json, ds_z2_config.json, ds_z3_config.json]
+
+### dataset
+dataset: abhuman_anomaly
+template: qwen3_vl
+cutoff_len: 16000
+max_samples: 1000000
+overwrite_cache: true
+preprocessing_num_workers: 64
+dataloader_num_workers: 64
+
+### output
+output_dir: saves/qwen3vl-7b/lora/sft
+logging_steps: 10
+save_steps: 500
+plot_loss: true
+overwrite_output_dir: true
+save_only_model: false
+report_to: none  # choices: [none, wandb, tensorboard, swanlab, mlflow]
+
+### train
+per_device_train_batch_size: 2
+gradient_accumulation_steps: 4
+learning_rate: 1.0e-4
+num_train_epochs: 5.0
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+bf16: true
+ddp_timeout: 180000000
+resume_from_checkpoint: null
+
+### eval
+val_size: 0.05                     # 拿出 5% 的数据作为验证集 (约 2850 条)
+per_device_eval_batch_size: 2     # 验证时的 Batch Size，A100 上可以和训练保持一致或稍大
+eval_strategy: steps               # 按步数评估
+eval_steps: 500            # 每 500 步评估一次
