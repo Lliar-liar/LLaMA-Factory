@@ -8,6 +8,20 @@
   "alpaca_zh_demo": {
     "file_name": "alpaca_zh_demo.json"
   },
+  "had_anomaly": {
+    "file_name": "/blob/human_artifact_dataset/had_qwen_vl_sft_blob.json",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "messages",
+      "images": "images"
+    },
+    "tags": {
+      "role_tag": "role",
+      "content_tag": "content",
+      "user_tag": "user",
+      "assistant_tag": "assistant"
+    }
+  },
   "abhuman_anomaly": {
     "file_name": "/blob/HumanRefiner/abhuman_sft_augmented_blob.json",
     "formatting": "sharegpt",

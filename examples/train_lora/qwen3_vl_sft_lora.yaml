@@ -14,7 +14,7 @@ lora_target: all
 deepspeed: examples/deepspeed/ds_z2_config.json  # choices: [ds_z0_config.json, ds_z2_config.json, ds_z3_config.json]
 
 ### dataset
-dataset: abhuman_anomaly
+dataset: abhuman_anomaly, had_dataset
 template: qwen3_vl
 cutoff_len: 16000
 max_samples: 1000000
@@ -46,7 +46,7 @@ ddp_timeout: 180000000
 resume_from_checkpoint: null
 
 ### eval
-val_size: 0.05                     # 拿出 5% 的数据作为验证集 (约 2850 条)
+val_size: 0.05                    # 拿出 5% 的数据作为验证集 (约 2850 条)
 per_device_eval_batch_size: 2     # 验证时的 Batch Size，A100 上可以和训练保持一致或稍大
 eval_strategy: steps               # 按步数评估
 eval_steps: 500            # 每 500 步评估一次

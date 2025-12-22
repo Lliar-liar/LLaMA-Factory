@@ -1,51 +1,92 @@
-import torch
-from PIL import Image
 import cv2
 import numpy as np
 import re
 import os
 import subprocess
 from tqdm import tqdm
-from transformers import Qwen3VLForConditionalGeneration, AutoProcessor
-from peft import PeftModel
+from PIL import Image
+import torch
+
+# === vLLM & Qwen Utils ===
+from vllm import LLM, SamplingParams
+from transformers import AutoProcessor
 from qwen_vl_utils import process_vision_info
 
+# 设置多进程启动方式，防止 vLLM 卡死
+os.environ['VLLM_WORKER_MULTIPROC_METHOD'] = 'spawn'
+
 # ================= 配置区域 =================
-# 1. 模型路径
-BASE_MODEL_PATH = "Qwen/Qwen3-VL-8B-Instruct"
-LORA_PATH = "/home/v-wangrui5/Qwen_ckpt/Qwen_abhuman/qwen3vl-7b/lora/sft/checkpoint-8000" 
+# 1. 模型路径 (请修改为你 export 出来的 merged 模型路径)
+MERGED_MODEL_PATH = "/home/v-wangrui5/Qwen_ckpt/Qwen_abhuman/qwen3vl-8b-merged"
 
-# 2. 设备
-DEVICE = "cuda"
+# 2. 显卡配置
+# 如果显存不够 (OOM)，尝试降低到 0.8 或 0.7
+GPU_MEMORY_UTILIZATION = 0.9 
+MAX_MODEL_LEN = 8192         
 
-# 3. 提示词
-PROMPT_TEXT = "Detect human anatomical anomalies in this image."
+# 3. 提示词 (保持与训练一致)
+PROMPT_TEXT = "Please locate the abnormal and normal human parts in this image."
 
-# 4. 视频处理配置
-FRAME_INTERVAL = 4      # 采样间隔 (每隔多少帧检测一次)
-ANOMALY_THRESHOLD = 0.1 # 异常率阈值
-
-# 5. 采样策略开关 (新增)
-USE_ADAPTIVE_SAMPLING = False # True: 自适应采样 (发现异常后逐帧检测) | False: 均匀采样 (始终固定间隔)
+# 4. 视频配置
+FRAME_INTERVAL = 3     # 正常采样间隔
+ANOMALY_THRESHOLD = 0.1 # 判定不合格的阈值
+USE_ADAPTIVE_SAMPLING = True # 开启自适应采样(发现异常后逐帧检测)
 # ===========================================
 
-def load_model():
-    print(f"Loading Base Model: {BASE_MODEL_PATH} ...")
-    model = Qwen3VLForConditionalGeneration.from_pretrained(
-        BASE_MODEL_PATH,
-        torch_dtype=torch.bfloat16,
-        device_map=DEVICE,
+def prepare_inputs_for_vllm(messages, processor):
+    """
+    Qwen3-VL 专用输入预处理，计算动态分辨率网格
+    """
+    # 1. 生成 Prompt 文本
+    text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    
+    # 2. 处理视觉信息
+    image_inputs, video_inputs, video_kwargs = process_vision_info(
+        messages,
+        image_patch_size=processor.image_processor.patch_size,
+        return_video_kwargs=True,
+        return_video_metadata=True
+    )
+
+    mm_data = {}
+    if image_inputs is not None:
+        mm_data['image'] = image_inputs
+    # 如果未来处理视频输入，这里加 video
+
+    return {
+        'prompt': text,
+        'multi_modal_data': mm_data,
+        'mm_processor_kwargs': video_kwargs # 关键参数
+    }
+
+def init_vllm_model():
+    print(f"Initializing Processor from: {MERGED_MODEL_PATH} ...")
+    # 加载 Processor (用于处理图片 resize 和 prompt template)
+    processor = AutoProcessor.from_pretrained(MERGED_MODEL_PATH, trust_remote_code=True)
+
+    print(f"Initializing vLLM Engine with Merged Model...")
+    llm = LLM(
+        model=MERGED_MODEL_PATH,
+        enable_lora=False,          # <--- 关键：关闭 LoRA，因为权重已融合
         trust_remote_code=True,
+        gpu_memory_utilization=GPU_MEMORY_UTILIZATION,
+        max_model_len=MAX_MODEL_LEN,
+        dtype="bfloat16",           # A100 推荐使用 bf16
+        limit_mm_per_prompt={"image": 1},
     )
     
-    print(f"Loading LoRA Adapter: {LORA_PATH} ...")
-    model = PeftModel.from_pretrained(model, LORA_PATH)
+    # 定义采样参数
+    sampling_params = SamplingParams(
+        temperature=0.1,  # 低温采样，保证检测稳定性
+        top_p=0.8,
+        max_tokens=512,   # 足够容纳多个框的坐标
+        stop_token_ids=[151645, 151643] # Qwen EOS tokens
+    )
     
-    processor = AutoProcessor.from_pretrained(BASE_MODEL_PATH, trust_remote_code=True)
-    model.eval()
-    return model, processor
+    return llm, processor, sampling_params
 
-def run_inference_on_image(model, processor, pil_image):
+def run_inference_vllm(llm, processor, sampling_params, pil_image):
+    # 构造消息
     messages = [
         {
             "role": "user",
@@ -56,94 +97,94 @@ def run_inference_on_image(model, processor, pil_image):
         }
     ]
 
-    text = processor.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True
-    )
-    image_inputs, video_inputs = process_vision_info(messages)
-    
-    inputs = processor(
-        text=[text],
-        images=image_inputs,
-        videos=video_inputs,
-        padding=True,
-        return_tensors="pt",
-    )
-    inputs = inputs.to(DEVICE)
+    # 准备 vLLM 输入格式
+    vllm_inputs = prepare_inputs_for_vllm(messages, processor)
 
-    with torch.no_grad():
-        generated_ids = model.generate(**inputs, max_new_tokens=512)
-    
-    generated_ids_trimmed = [
-        out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
-    ]
-    output_text = processor.batch_decode(
-        generated_ids_trimmed, skip_special_tokens=False, clean_up_tokenization_spaces=False
-    )[0]
-    
-    return output_text
+    # 执行推理 (无需传入 lora_request)
+    outputs = llm.generate(
+        [vllm_inputs],
+        sampling_params=sampling_params,
+        use_tqdm=False
+    )
+    print(f"LLM Output: {outputs[0].outputs[0].text}")
+    return outputs[0].outputs[0].text
 
 def parse_and_draw_frame(frame_bgr, model_response):
     h_img, w_img = frame_bgr.shape[:2]
-    pattern = r"<\|box_start\|>\((\d+),(\d+)\),\((\d+),(\d+)\)<\|box_end\|><\|object_ref_start\|>(.*?)<\|object_ref_end\|>"
-    matches = re.findall(pattern, model_response)
     
-    found_anomaly = False
-    anomaly_details = []
-
+    # --- 1. 清洗数据：去除 <think> 内容 ---
+    # 使用正则将 <think>...</think> 及其内部内容替换为空
+    clean_response = re.sub(r"<think>.*?</think>", "", model_response, flags=re.DOTALL).strip()
+    
+    # --- 2. 新的正则表达式 ---
+    # 解释：
+    # \((\d+),(\d+)\)  -> 匹配 (x1,y1)
+    # ,                -> 匹配中间的逗号
+    # \((\d+),(\d+)\)  -> 匹配 (x2,y2)
+    # \s*              -> 匹配 0个或多个空格 (防止有的时候有空格)
+    # ([^\n<]+)        -> 匹配标签内容 (直到换行符或下一个 < 符号出现)
+    pattern = r"\((\d+),(\d+)\),\((\d+),(\d+)\)\s*([^\n<]+)"
+    
+    matches = re.findall(pattern, clean_response)
+    
+    found_real_anomaly = False
+    
+    # 调试打印 (可选)
+    # if matches:
+    #     print(f"Frame detected: {matches}")
+    
     for match in matches:
+        # 正则提取出来的是字符串，转整数
         x1_n, y1_n, x2_n, y2_n, label = match
+        label = label.strip() # 去除首尾空格
         
+        # 反归一化坐标 (0-1000 -> 实际像素)
         x1 = int(int(x1_n) / 1000 * w_img)
         y1 = int(int(y1_n) / 1000 * h_img)
         x2 = int(int(x2_n) / 1000 * w_img)
         y2 = int(int(y2_n) / 1000 * h_img)
 
-        is_abnormal = "abnormal" in label.lower() or "anomaly" in label.lower()
+        # === 标签判定逻辑 ===
+        label_lower = label.lower()
         
-        if is_abnormal:
-            color = (0, 0, 255) # Red
-            found_anomaly = True
-            anomaly_details.append(label)
-        elif "normal" in label.lower():
-            color = (0, 255, 0) # Green
+        # 1. 优先判定异常
+        if "abnormal" in label_lower or "anomaly" in label_lower:
+            color = (0, 0, 255) # Red (BGR)
+            found_real_anomaly = True 
+            
+        # 2. 判定正常
+        elif "normal" in label_lower:
+            color = (0, 255, 0) # Green (BGR)
+            
+        # 3. 其他 (兜底)
         else:
             color = (255, 0, 0) # Blue
 
+        # 画框
         cv2.rectangle(frame_bgr, (x1, y1), (x2, y2), color, 2)
         
-        label_str = label
-        label_size, baseline = cv2.getTextSize(label_str, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        # 画文字标签
+        label_size, baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
         y1_label = max(y1, label_size[1] + 10)
         cv2.rectangle(frame_bgr, (x1, y1_label - label_size[1] - 10), (x1 + label_size[0], y1_label + baseline - 10), color, cv2.FILLED)
-        cv2.putText(frame_bgr, label_str, (x1, y1_label - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+        cv2.putText(frame_bgr, label, (x1, y1_label - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
 
-    return frame_bgr, found_anomaly, anomaly_details
+    return frame_bgr, found_real_anomaly
 
 def merge_audio(video_no_audio, original_video_with_audio, output_path):
-    print(f"Merging audio from {original_video_with_audio} to {video_no_audio}...")
+    print(f"Merging audio...")
+    # 使用 ffmpeg 合并音轨
     command = [
-        "ffmpeg", "-y",
-        "-i", video_no_audio,
-        "-i", original_video_with_audio,
-        "-c:v", "copy",
-        "-c:a", "aac",
-        "-map", "0:v:0",
-        "-map", "1:a:0",
-        "-shortest",
-        output_path
+        "ffmpeg", "-y", "-i", video_no_audio, "-i", original_video_with_audio,
+        "-c:v", "copy", "-c:a", "aac", "-map", "0:v:0", "-map", "1:a:0", "-shortest", output_path
     ]
     try:
         subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-        print(f"✅ Audio merge successful! Final video: {output_path}")
         return True
-    except subprocess.CalledProcessError as e:
-        print(f"❌ FFmpeg merge failed. Error: {e.stderr.decode()}")
-        return False
-    except FileNotFoundError:
-        print("❌ FFmpeg not found.")
+    except:
         return False
 
-def process_video(video_path, model, processor):
+def process_video(video_path, llm, processor, sampling_params):
     if not os.path.exists(video_path):
         print(f"Error: Video not found at {video_path}")
         return
@@ -155,21 +196,15 @@ def process_video(video_path, model, processor):
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     
     base_name = os.path.splitext(os.path.basename(video_path))[0]
-    temp_video_path = f"{base_name}_silent_temp.mp4"
-    final_output_path = f"{base_name}_analyzed.mp4"
+    temp_video_path = f"{base_name}_silent_vllm.mp4"
+    final_output_path = f"{base_name}_analyzed_vllm.mp4"
     
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out_writer = cv2.VideoWriter(temp_video_path, fourcc, fps, (width, height))
     
-    print(f"Start processing video: {video_path}")
-    print(f"Total frames: {total_frames}, Resolution: {width}x{height}, FPS: {fps}")
+    print(f"Start processing video (Merged Model + vLLM): {video_path}")
+    print(f"Strategy: {'Adaptive' if USE_ADAPTIVE_SAMPLING else 'Uniform'} Sampling")
     
-    # === 打印当前的采样策略 ===
-    if USE_ADAPTIVE_SAMPLING:
-        print(f"Strategy: [ADAPTIVE] Check every {FRAME_INTERVAL} frames, switch to continuous check on anomaly.")
-    else:
-        print(f"Strategy: [UNIFORM] Strict sampling every {FRAME_INTERVAL} frames.")
-
     frame_idx = 0
     sampled_count = 0
     anomaly_frame_count = 0
@@ -185,30 +220,35 @@ def process_video(video_path, model, processor):
         # 判断当前帧是否需要推理
         if frame_idx == next_inference_frame:
             sampled_count += 1
+            
+            # BGR (OpenCV) -> RGB (PIL)
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             pil_img = Image.fromarray(frame_rgb)
             
-            response = run_inference_on_image(model, processor, pil_img)
-            frame_annotated, has_anomaly, details = parse_and_draw_frame(frame, response)
+            # === 执行 vLLM 推理 ===
+            try:
+                response = run_inference_vllm(llm, processor, sampling_params, pil_img)
+                # 解析并画框
+                frame_annotated, has_real_anomaly = parse_and_draw_frame(frame, response)
+            except Exception as e:
+                print(f"Warning: Inference error at frame {frame_idx}: {e}")
+                frame_annotated = frame
+                has_real_anomaly = False
             
-            if has_anomaly:
+            # 自适应采样逻辑
+            if has_real_anomaly:
                 anomaly_frame_count += 1
-                
-                # === 核心修改逻辑 ===
                 if USE_ADAPTIVE_SAMPLING:
-                    # 自适应模式：下一帧立即检测
-                    next_inference_frame = frame_idx + 1
-                    msg = "ANOMALY! Checking next frame..."
+                    next_inference_frame = frame_idx + 1 # 发现异常，下一帧继续测
+                    msg = "ANOMALY! Checking next..."
                 else:
-                    # 均匀模式：依然跳过间隔
                     next_inference_frame = frame_idx + FRAME_INTERVAL
                     msg = "ANOMALY DETECTED!"
-
-                # 提示文字
-                cv2.putText(frame_annotated, msg, (10, 30), 
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                
+                # 画面提示
+                cv2.putText(frame_annotated, msg, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
             else:
-                # 无异常，跳过间隔
+                # 正常 (Normal或无框)，跳过间隔
                 next_inference_frame = frame_idx + FRAME_INTERVAL
         else:
             frame_annotated = frame
@@ -221,38 +261,34 @@ def process_video(video_path, model, processor):
     out_writer.release()
     pbar.close()
     
-    print("Processing visualization finished. Merging audio...")
+    # 合并音频
     success = merge_audio(temp_video_path, video_path, final_output_path)
     if success and os.path.exists(temp_video_path):
         os.remove(temp_video_path)
     elif not success:
-        final_output_path = temp_video_path
-
-    # === 最终报告 ===
+        final_output_path = temp_video_path # 失败则保留无声版
+    
+    # 生成报告
     anomaly_ratio = anomaly_frame_count / sampled_count if sampled_count > 0 else 0
     is_video_abnormal = anomaly_ratio > ANOMALY_THRESHOLD
     
     print("\n" + "="*40)
-    print(f"Processing Complete.")
-    print(f"Final Output saved to: {final_output_path}")
-    print(f"Frames analyzed ({'Adaptive' if USE_ADAPTIVE_SAMPLING else 'Uniform'}): {sampled_count} / {total_frames}")
-    print(f"Frames with anomalies: {anomaly_frame_count}")
+    print(f"Final Output: {final_output_path}")
+    print(f"Frames analyzed: {sampled_count} / {total_frames}")
+    print(f"Frames with REAL anomalies: {anomaly_frame_count}")
     print(f"Anomaly Ratio: {anomaly_ratio:.2%}")
-    print("-" * 40)
-    
     if is_video_abnormal:
-        print(f"🔴 结论: 视频包含异常人体结构 (不合格)")
-        print(f"   判定阈值: > {ANOMALY_THRESHOLD:.0%}")
+        print(f"🔴 结论: 不合格 (>{ANOMALY_THRESHOLD:.0%})")
     else:
-        print(f"🟢 结论: 视频人体结构正常 (合格)")
+        print(f"🟢 结论: 合格")
     print("="*40)
 
 if __name__ == "__main__":
-    # 1. 加载模型
-    model, processor = load_model()
+    # 1. 初始化引擎
+    llm_engine, processor, params = init_vllm_model()
     
-    # 2. 视频路径
-    target_video = "/home/v-wangrui5/guitar_Cmajor_chord_2.mp4" 
+    # 2. 指定视频文件
+    target_video = "/home/v-wangrui5/Ovi/outputs/A_dramatic,_snowy_night_game_in_a_stadium._Floodli_704x1280_103_0.mp4" 
     
-    # 3. 运行
-    process_video(target_video, model, processor)
+    # 3. 开始处理
+    process_video(target_video, llm_engine, processor, params)
