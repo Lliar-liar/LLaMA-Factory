@@ -1,0 +1,57 @@
+### model
+# !!! 修改这里：指向你刚刚 Export 出来的 Merged 模型路径
+model_name_or_path: Qwen_ckpt/Qwen_abhuman/qwen3vl-8b-merged-v2
+image_max_pixels: 2250000
+video_max_pixels: 16384
+trust_remote_code: true
+
+### method
+stage: sft
+do_train: true
+finetuning_type: lora
+lora_rank: 64
+lora_alpha: 128
+lora_target: all
+deepspeed: examples/deepspeed/ds_z2_config.json
+
+### dataset
+# 保持不变，继续混合训练
+dataset: abhuman_anomaly, had_anomaly
+template: qwen3_vl
+cutoff_len: 16000
+max_samples: 1000000
+overwrite_cache: true
+preprocessing_num_workers: 64
+dataloader_num_workers: 64
+
+### output
+# !!! 修改这里：新的输出目录
+output_dir: saves/qwen3vl-8b/lora/sft_phase2
+logging_steps: 10
+save_steps: 500
+plot_loss: true
+overwrite_output_dir: true
+save_only_model: false
+report_to: wandb
+# !!! 修改这里：新的实验名称
+run_name: qwen3vl_8b_abhuman_v2_phase2
+
+### train
+per_device_train_batch_size: 2
+gradient_accumulation_steps: 4
+# !!! 修改这里：降低学习率，进行微操
+learning_rate: 5.0e-5
+# !!! 修改这里：再跑 3 个 Epoch
+num_train_epochs: 10.0
+lr_scheduler_type: cosine
+warmup_ratio: 0.05
+bf16: true
+ddp_timeout: 180000000
+# !!! 重点：不要 Resume，我们要全新的开始
+resume_from_checkpoint: null
+
+### eval
+val_size: 0.05
+per_device_eval_batch_size: 2
+eval_strategy: steps
+eval_steps: 500
