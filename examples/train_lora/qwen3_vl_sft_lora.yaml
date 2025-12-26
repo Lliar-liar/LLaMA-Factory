@@ -16,7 +16,7 @@ deepspeed: examples/deepspeed/ds_z2_config.json  # choices: [ds_z0_config.json, 
 ### dataset
 dataset: abhuman_anomaly,had_anomaly
 mix_strategy: interleave_under
-interleave_probs: 0.92,0.08   
+interleave_probs: 0.98,0.02  
 template: qwen3_vl
 cutoff_len: 16000
 max_samples: 1000000
