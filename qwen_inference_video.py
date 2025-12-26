@@ -17,7 +17,7 @@ os.environ['VLLM_WORKER_MULTIPROC_METHOD'] = 'spawn'
 
 # ================= 配置区域 =================
 # 1. 模型路径 (请修改为你 export 出来的 merged 模型路径)
-MERGED_MODEL_PATH = "/home/v-wangrui5/Qwen_ckpt/Qwen_abhuman/qwen3vl-8b-merged"
+MERGED_MODEL_PATH = "/home/v-wangrui5/Qwen_ckpt/Qwen_abhuman/qwen3vl-8b-p2-merged"
 
 # 2. 显卡配置
 # 如果显存不够 (OOM)，尝试降低到 0.8 或 0.7
@@ -288,7 +288,7 @@ if __name__ == "__main__":
     llm_engine, processor, params = init_vllm_model()
     
     # 2. 指定视频文件
-    target_video = "/home/v-wangrui5/Ovi/outputs/A_dramatic,_snowy_night_game_in_a_stadium._Floodli_704x1280_103_0.mp4" 
+    target_video = "/home/v-wangrui5/guitar_Cmajor_chord_2.mp4" 
     
     # 3. 开始处理
     process_video(target_video, llm_engine, processor, params)

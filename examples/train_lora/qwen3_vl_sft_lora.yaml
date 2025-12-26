@@ -14,7 +14,7 @@ lora_target: all
 deepspeed: examples/deepspeed/ds_z2_config.json  # choices: [ds_z0_config.json, ds_z2_config.json, ds_z3_config.json]
 
 ### dataset
-dataset: abhuman_anomaly, had_anomaly
+dataset: abhuman_anomaly,had_anomaly:0.1 
 template: qwen3_vl
 cutoff_len: 16000
 max_samples: 1000000
@@ -30,7 +30,7 @@ plot_loss: true
 overwrite_output_dir: true
 save_only_model: false
 report_to: wandb                 # <--- 核心修改：将 none 改为 wandb
-run_name: qwen3vl_8b_abhuman_v2  # <--- 新增：这次训练任务的名称（显示在WandB列表里）
+run_name: qwen3vl_8b_abhuman_v3  # <--- 新增：这次训练任务的名称（显示在WandB列表里）
 # wandb_project: HumanRefiner_SFT  # <--- 新增：WandB 的项目名称（用于归类）
 # wandb_watch: false     
 
