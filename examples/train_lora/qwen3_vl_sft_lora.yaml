@@ -37,7 +37,7 @@ run_name: qwen3vl_8b_abhuman_v4  # <--- 新增：这次训练任务的名称（�
 # wandb_watch: false     
 
 ### train
-per_device_train_batch_size: 2
+per_device_train_batch_size: 4
 gradient_accumulation_steps: 4
 learning_rate: 2.0e-4
 num_train_epochs: 5.0
