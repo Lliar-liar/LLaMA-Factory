@@ -25,19 +25,18 @@ preprocessing_num_workers: 64
 dataloader_num_workers: 64
 
 ### output
-output_dir: /blob/Qwen_abhuman/qwen3vl-8b/v4/batch_64
+output_dir: /blob/Qwen_abhuman/qwen3vl-8b/v4/batch_128
 logging_steps: 10
 save_steps: 500
 plot_loss: true
 overwrite_output_dir: true
 save_only_model: false
-report_to: wandb                 # <--- 核心修改：将 none 改为 wandb
-run_name: qwen3vl_8b_abhuman_v4  # <--- 新增：这次训练任务的名称（显示在WandB列表里）
-# wandb_project: HumanRefiner_SFT  # <--- 新增：WandB 的项目名称（用于归类）
-# wandb_watch: false     
+report_to: wandb                 
+run_name: qwen3vl_8b_abhuman_v4  
+
 
 ### train
-per_device_train_batch_size: 4
+per_device_train_batch_size: 8
 gradient_accumulation_steps: 4
 learning_rate: 2.0e-4
 num_train_epochs: 5.0
@@ -48,7 +47,7 @@ ddp_timeout: 180000000
 resume_from_checkpoint: null
 
 ### eval
-val_size: 0.05                    # 拿出 5% 的数据作为验证集 (约 2850 条)
-per_device_eval_batch_size: 2     # 验证时的 Batch Size，A100 上可以和训练保持一致或稍大
-eval_strategy: steps               # 按步数评估
-eval_steps: 500            # 每 500 步评估一次
+val_size: 0.05                    
+per_device_eval_batch_size: 8    
+eval_strategy: steps               
+eval_steps: 500            
