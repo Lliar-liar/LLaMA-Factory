@@ -30,7 +30,7 @@ PROMPT_TEXT = "Please locate the abnormal and normal human parts in this image."
 # 4. 视频配置
 FRAME_INTERVAL = 3     # 正常采样间隔
 ANOMALY_THRESHOLD = 0.1 # 判定不合格的阈值
-USE_ADAPTIVE_SAMPLING = True # 开启自适应采样(发现异常后逐帧检测)
+USE_ADAPTIVE_SAMPLING = False # 开启自适应采样(发现异常后逐帧检测)
 # ===========================================
 
 def prepare_inputs_for_vllm(messages, processor):
@@ -79,7 +79,7 @@ def init_vllm_model():
     sampling_params = SamplingParams(
         temperature=0.1,  # 低温采样，保证检测稳定性
         top_p=0.8,
-        max_tokens=512,   # 足够容纳多个框的坐标
+        max_tokens=2048,   # 足够容纳多个框的坐标
         stop_token_ids=[151645, 151643] # Qwen EOS tokens
     )
     
@@ -288,7 +288,7 @@ if __name__ == "__main__":
     llm_engine, processor, params = init_vllm_model()
     
     # 2. 指定视频文件
-    target_video = "/home/v-wangrui5/Bernoulli_s_Principle__Floating_Ball_.mp4" 
+    target_video = "/home/v-wangrui5/Ovi/outputs/A_gritty,_smoky_underground_ring._Sweat_glistens_o_704x1280_103_0.mp4" 
     
     # 3. 开始处理
     process_video(target_video, llm_engine, processor, params)
