@@ -288,7 +288,7 @@ if __name__ == "__main__":
     llm_engine, processor, params = init_vllm_model()
     
     # 2. 指定视频文件
-    target_video = "/home/v-wangrui5/Geico___Unskippable_Elevator.mp4" 
+    target_video = "/home/v-wangrui5/Bernoulli_s_Principle__Floating_Ball_.mp4" 
     
     # 3. 开始处理
     process_video(target_video, llm_engine, processor, params)
